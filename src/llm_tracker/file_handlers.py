@@ -827,6 +827,7 @@ def load_human_wide(
     construct_suffix: str = "_score",
     presence_threshold: float = 1.0,
     output_path: Path | str | None = None,
+    include_empty: bool = False,
     **read_kwargs,
 ) -> dict[str, AnalysisResult]:
     """Load human coded data from a wide file, one column per construct.
@@ -854,6 +855,12 @@ def load_human_wide(
         presence_threshold: Lowest score that counts as coded. Defaults to 1.0.
         output_path: Optional path to save the melted long table to, useful for
             inspecting what the melt produced.
+        include_empty: Preserve documents with no detected constructs as empty
+            results. Use True for compare_presence. Requires nonmissing document
+            IDs/text and numeric, nonmissing scores for every selected construct
+            so incomplete coding is not interpreted as absence. Defaults to False
+            for compatibility. The optional melted CSV still contains positives
+            only; it cannot preserve these empty results.
         **read_kwargs: Additional keyword arguments passed to pandas.
 
     Returns:
@@ -876,12 +883,9 @@ def load_human_wide(
         presence_threshold=presence_threshold,
     )
 
-    if output_path is not None:
-        long_df.to_csv(output_path, index=False)
-
     # One construct per row after melting, so splitting could only fragment
     # names that contain the separator.
-    return load_human_dataframe(
+    results = load_human_dataframe(
         long_df,
         doc_id_col="document_id",
         quote_col="quote",
@@ -889,6 +893,32 @@ def load_human_wide(
         construct_col="construct",
         construct_separator="\x00",
     )
+    if include_empty:
+        columns = (
+            construct_cols
+            if construct_cols is not None
+            else [
+                column
+                for column in df.columns
+                if construct_suffix and column.endswith(construct_suffix)
+            ]
+        )
+        scores = df[columns].apply(pd.to_numeric, errors="coerce")
+        if df[[doc_id_col, text_col]].isna().any().any() or scores.isna().any().any():
+            raise FileLoadError(
+                "include_empty=True requires document IDs, text, and numeric "
+                "scores for every construct. Missing coding cannot count as absence."
+            )
+        for value in df[doc_id_col]:
+            document_id = str(value).strip()
+            if not document_id:
+                raise FileLoadError(
+                    "include_empty=True requires nonempty document IDs."
+                )
+            results.setdefault(document_id, AnalysisResult(document_id=document_id))
+    if output_path is not None:
+        long_df.to_csv(output_path, index=False)
+    return results
 
 
 def load_error_records(output_dir: Path | str) -> list[ErrorRecord]:
