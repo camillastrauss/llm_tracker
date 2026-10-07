@@ -1845,10 +1845,13 @@ def compute_binary_metrics(
     Reports the 2x2 counts, the classification metrics computed from them, and
     the two chance-corrected coefficients that operate on nominal data.
 
-    Note that ``pabak`` here is standard PABAK (2 * observed agreement - 1,
-    with observed agreement including true negatives). The span-level tables
-    report ``jaccard`` instead, which is a different statistic on a different
-    unit; the two are not comparable.
+    Jaccard is TP / (TP + FP + FN), excluding true negatives. It is undefined
+    (None/NaN) when neither coder detected the construct. The pooled Overall
+    score uses pooled counts, not the mean of per-construct scores. These are
+    document-level detections, whereas span-level Jaccard counts quote instances.
+
+    Here ``pabak`` is standard PABAK (2 * observed agreement - 1), with observed
+    agreement including true negatives.
 
     On a sparse grid, ``pabak`` and the raw agreement it derives from are
     inflated by true negatives: a model that codes nothing still scores well.
@@ -1856,7 +1859,7 @@ def compute_binary_metrics(
 
     Args:
     ----
-        grid: Output of build_presence_grid.
+        grid: Output of build_presence_grid or compare_presence.
         output_dir: Optional directory to write ``doc_binary.csv`` into.
 
     Returns:
@@ -1876,6 +1879,7 @@ def compute_binary_metrics(
         "sensitivity",
         "precision",
         "f1",
+        "jaccard",
         "pabak",
         "cohens_kappa",
         "kripp_alpha_nominal",
@@ -1887,13 +1891,16 @@ def compute_binary_metrics(
     for construct, group in _grid_groups(grid):
         human = group["human_present"].to_numpy()
         llm = group["llm_present"].to_numpy()
+        scores = _confusion_scores(human, llm)
+        union = scores["tp"] + scores["fp"] + scores["fn"]
         rows.append(
             {
                 "construct": construct,
                 "n_docs": group["doc_id"].nunique(),
                 "human_present": int(group["human_present"].sum()),
                 "llm_present": int(group["llm_present"].sum()),
-                **_confusion_scores(human, llm),
+                **scores,
+                "jaccard": round(scores["tp"] / union, 4) if union else None,
                 "cohens_kappa": _safe_kappa(human, llm, weights=None),
                 "kripp_alpha_nominal": _safe_alpha(human, llm, level="nominal"),
             }
