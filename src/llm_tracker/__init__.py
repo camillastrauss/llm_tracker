@@ -1,6 +1,7 @@
 """LLM Tracker: Psychological construct identification using LLM analysis."""
 
 from llm_tracker.analyzer import LLMTrackerAnalyzer
+from llm_tracker.batch import BatchError, BatchNotReadyError
 from llm_tracker.comparison import (
     LLMTrackerComparer,
     compute_summary_tables,
@@ -8,12 +9,21 @@ from llm_tracker.comparison import (
     format_weighted_summary,
 )
 from llm_tracker.config import AnalyzerConfig
-from llm_tracker.models import AnalysisResult, Codebook, ConstructInstance, ErrorRecord
+from llm_tracker.models import (
+    AnalysisResult,
+    BatchJob,
+    Codebook,
+    ConstructInstance,
+    ErrorRecord,
+)
 from llm_tracker.presence import compare_presence
 
 __version__ = "0.1.0"
 __all__ = [
     "LLMTrackerAnalyzer",
+    "BatchJob",
+    "BatchError",
+    "BatchNotReadyError",
     "AnalyzerConfig",
     "LLMTrackerComparer",
     "compare_presence",

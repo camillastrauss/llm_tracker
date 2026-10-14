@@ -6,6 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 from llm_tracker import file_handlers
+from llm_tracker.batch import BatchAnalyzerMixin
 from llm_tracker.config import AnalyzerConfig
 from llm_tracker.file_handlers import (
     FileLoadError,
@@ -112,7 +113,7 @@ def _save_processing_error(
     return error_record
 
 
-class LLMTrackerAnalyzer:
+class LLMTrackerAnalyzer(BatchAnalyzerMixin):
     """Analyzer for identifying psychological constructs in text documents."""
 
     def __init__(

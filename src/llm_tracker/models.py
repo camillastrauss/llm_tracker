@@ -1,5 +1,7 @@
 """Data models for llm_tracker."""
 
+from pathlib import Path
+
 from pydantic import BaseModel, Field
 
 
@@ -128,3 +130,15 @@ class ErrorRecord(BaseModel):
     error_message: str
     model_used: str = ""
     timestamp: str | None = None
+
+
+class BatchJob(BaseModel):
+    """Local reference to a persisted batch run, possibly containing several jobs.
+
+    Save output_path to check or collect the run after restarting Python.
+    The manifest stores job IDs, frozen inputs/settings, and submission state;
+    it never stores the API key. Status is retrieved separately.
+    """
+
+    output_path: Path
+    batch_ids: list[str] = Field(default_factory=list)
